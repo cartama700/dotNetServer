@@ -1,0 +1,11 @@
+*.txt
+
+packages/
+
+**/bin/Debug/
+
+**/bin/Release/
+
+**/obj
+
+.editorconfig

@@ -1,3 +1,4 @@
+using API.Di;
 using API.Middleware;
 using API.Swagger;
 using Microsoft.AspNetCore.Builder;
@@ -6,11 +7,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.OpenApi.Models;
-using Microsoft.EntityFrameworkCore;
 using ServerLib.Database.Mysql.Context;
-using System;
 using ServerLib.Database.Mysql.Dao;
-using API.Di;
 
 namespace API
 {
@@ -23,11 +21,9 @@ namespace API
 
         public IConfiguration Configuration { get; }
 
-        // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
-
-            services.AddControllers();
+            services.AddControllers().AddNewtonsoftJson();
             services.AddSwaggerGen(options =>
             {
                 options.SwaggerDoc("v1", new OpenApiInfo { Title = "API", Version = "v1" });
@@ -37,10 +33,6 @@ namespace API
 
             services.AddHttpContextAccessor();
 
-            /*services.AddDbContext<MysqlDbContext>(
-                options => options.UseMySql(Configuration.GetConnectionString("Portfolio"), new MySqlServerVersion(new Version(8, 0, 28)))
-            );*/
-
             services.AddDbContext<MysqlDbContext>();
 
             services.AddTransient<PlayerDi>();
@@ -48,6 +40,7 @@ namespace API
             services.AddTransient<DaoContext>();
 
             services.AddTransient<TotalDi>();
+
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

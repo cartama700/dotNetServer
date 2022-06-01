@@ -4,7 +4,7 @@ using ServerLib.Database.Mysql.Dto.User;
 
 namespace ServerLib.Database.Mysql.Dao
 {
-    public class UserCashDao : DaoBase<UserCashDto>
+    public class UserCashDao
     {
         protected MysqlDbContext _mysqlDbContext;
 
@@ -27,7 +27,6 @@ namespace ServerLib.Database.Mysql.Dao
             else
             {
                 userCashDto.Count += entity.Count;
-                _mysqlDbContext.Attach(userCashDto);
             }
 
             return userCashDto;

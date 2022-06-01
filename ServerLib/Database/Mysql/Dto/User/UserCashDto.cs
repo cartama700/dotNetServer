@@ -1,8 +1,8 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Share.Structure;
 using Share.Type.Item;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using Share.Structure;
 
 namespace ServerLib.Database.Mysql.Dto.User
 {

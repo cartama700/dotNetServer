@@ -5,7 +5,7 @@ using ServerLib.Database.Mysql.Dto.User;
 namespace ServerLib.Database.Mysql.Dao
 {
 
-    public class UserItemDao : DaoBase<UserItemDto>
+    public class UserItemDao
     {
         protected MysqlDbContext _mysqlDbContext;
 
@@ -14,25 +14,17 @@ namespace ServerLib.Database.Mysql.Dao
             _mysqlDbContext = mysqlDbContext;
         }
 
-        private async Task<ushort> GetLastSlotAsync(long playerId)
-        {
-            return  await _mysqlDbContext.UserItemDtos
-                .Where(x => x.PlayerId == playerId)
-                .OrderByDescending(x => x.Slot)
-                .Select(x => (ushort)(x.Slot + 1))
-                .SingleOrDefaultAsync();
-        }
-
-        public async Task<UserItemDto> InsertOrUpdateAsync(UserItemDto entity)
+        public async Task<UserItemDto> InsertOrUpdateAsync(UserItemDto entity, ushort slotNum)
         {
             var userItemDto = await _mysqlDbContext.UserItemDtos
                 .Where(x => x.PlayerId == entity.PlayerId)
-                .SingleOrDefaultAsync(x => x.ItemId == entity.ItemId);
-            
-            if(userItemDto == null)
+                .Where(x => x.ItemId == entity.ItemId)
+                .SingleOrDefaultAsync();
+
+            if (userItemDto == null)
             {
                 userItemDto = entity;
-                userItemDto.Slot = await GetLastSlotAsync(entity.PlayerId);
+                userItemDto.Slot = slotNum;
             }
             else
             {
@@ -44,10 +36,10 @@ namespace ServerLib.Database.Mysql.Dao
 
             return userItemDto;
         }
-                
+
         public void Update(UserItemDto entity)
         {
-            if(entity.Id == 0)
+            if (entity.Id == 0)
             {
                 throw new NotImplementedException("기본 키는 필수 입니다.");
             }

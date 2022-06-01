@@ -1,13 +1,16 @@
 ﻿using Microsoft.AspNetCore.Http;
-using System;
-using System.Threading.Tasks;
 using ServerLib.Utill;
 using Share.Const;
-using System.Text.Json;
+using System;
 using System.Net;
+using System.Text.Json;
+using System.Threading.Tasks;
 
 namespace API.Middleware
 {
+    /// <summary>
+    /// 응답을 보낼때 종합적인 처리를 하는 미들웨어 
+    /// </summary>
     public class ResponseMiddleware
     {
         private readonly RequestDelegate _next;
@@ -51,15 +54,15 @@ namespace API.Middleware
                     Message = ex.Message
                 }.ToString());*/
             }
-            catch(NotSupportedException ex)
+            catch (NotSupportedException ex)
             {
                 Console.WriteLine($"NotSupportedException: {ex}");
                 httpContext.Response.StatusCode = (int)HttpStatusCode.Forbidden;
             }
-            catch(ArgumentException ex)
+            catch (ArgumentException ex)
             {
                 Console.WriteLine($"ArgumentException: {ex}");
-                httpContext.Response.StatusCode = (int) HttpStatusCode.ResetContent;
+                httpContext.Response.StatusCode = (int)HttpStatusCode.ResetContent;
             }
             catch (Exception ex)
             {

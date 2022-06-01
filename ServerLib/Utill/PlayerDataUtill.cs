@@ -1,13 +1,19 @@
 ﻿using Microsoft.AspNetCore.Http;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace ServerLib.Utill
 {
+    /// <summary>
+    /// 플레이어 데이터 유틸
+    /// </summary>
     public static class PlayerDataUtill
     {
+        /// <summary>
+        /// 헤더에서 플레이어 아이디를 가져옴
+        /// </summary>
+        /// <param name="headers"></param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ArgumentException"></exception>
         public static long? GetPlayerId(IHeaderDictionary headers)
         {
             if (headers.TryGetValue("IsNewUser", out _))

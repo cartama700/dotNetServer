@@ -1,19 +1,22 @@
-﻿using System;
+﻿using API.Di;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using ServerLib.Database.Mysql.Dto.Master.Item;
+using ServerLib.Database.Mysql.Dto.User;
+using ServerLib.Utill;
 using Share.Protocol.API.Item.Get;
 using Share.Structure;
 using System.Collections.Generic;
-using ServerLib.Utill;
-using Share.Type.Item;
-using Microsoft.EntityFrameworkCore;
 using System.Linq;
 using System.Threading.Tasks;
-using API.Di;
 
 namespace API.Controllers.Item
 {
+    /// <summary>
+    /// 소유 중인 아이템 정보를 가져오기
+    /// </summary>
     [ApiController]
-    [Route("[controller]")]
+    [Route("Item")]
     public class ItemGetController : BaseController
     {
         public ItemGetController(
@@ -22,61 +25,48 @@ namespace API.Controllers.Item
         {
         }
 
+        /// <summary>
+        /// 보유 중인 아이템 정보 가져오기
+        /// </summary>
+        /// <param name="ids"></param>
+        /// <returns></returns>
         [HttpGet]
-        [Route("Item")]
-        public async Task<JsonResult> ItemAsync(string ids)
+        public async Task<ItemGetProtocolResponse> ItemAsync(string ids)
         {
             var dbContext = _totalDi._mysqlDbContext;
 
-            var itemIds = ids.ValidationSplit(',').Select(UInt32.Parse).ToList();
+            var itemIds = ids.ValidationSplit(',').Select(uint.Parse).ToList();
 
-            var itemStructureList = await (from UserItem in dbContext.UserItemDtos
-                                           join MasterItem in dbContext.MasterItemDtos
-                                               on UserItem.ItemId equals MasterItem.Id
-                                           where itemIds.Contains(MasterItem.Id) && UserItem.PlayerId == _playerId
-                                           select new ItemStructure
-                                           {
-                                               Type = MasterItem.ItemType,
-                                               Id = MasterItem.Id,
-                                               Count = UserItem.Count,
-                                           }).ToListAsync();
-            
-            return Json(new ItemGetProtocol.Response
+            var masterItemDtoList = _totalDi._masterCache.Get<MasterItemDto>(itemIds);
+
+            var userItemDtoList = await dbContext.UserItemDtos
+                .AsNoTracking()
+                .Where(x => x.PlayerId == _playerId)
+                .Where(x => itemIds.Contains(x.ItemId))
+                .Select(x => new UserItemDto
+                {
+                    ItemId = x.ItemId,
+                    Count = x.Count,
+                })
+                .ToListAsync();
+
+            // 유저 아이템정보와 마스터 데이터를 종합
+            var itemStructureList = (
+                from userItemDto in userItemDtoList
+                join masterItemDto in masterItemDtoList
+                    on userItemDto.ItemId equals masterItemDto.Id
+                select new ItemStructure
+                {
+                    Type = masterItemDto.ItemType,
+                    Id = masterItemDto.Id,
+                    Count = userItemDto.Count,
+                }
+            ).ToList();
+
+            return new ItemGetProtocolResponse
             {
                 ItemDataList = itemStructureList
-            });
-        }
-
-        [HttpGet]
-        [Route("ItemGetByType")]
-        public async Task<JsonResult> ItemByTypeAsync(int type)
-        {
-            ItemType itemType;
-            if (Enum.IsDefined(typeof(ItemType), type))
-            {
-                itemType = (ItemType)type;
-            }
-            else
-            {
-                throw new ArgumentException("올바른 아이템 타입이 아닙니다.");
-            }
-
-            var itemStructureList = 
-                await (from UserItem in _totalDi._mysqlDbContext.UserItemDtos
-                    join MasterItem in _totalDi._mysqlDbContext.MasterItemDtos
-                        on UserItem.ItemId equals MasterItem.Id
-                    where MasterItem.ItemType == itemType && UserItem.PlayerId == _playerId
-                    select new ItemStructure
-                    {
-                        Type = MasterItem.ItemType,
-                        Id = MasterItem.Id,
-                        Count = UserItem.Count,
-                    }).ToListAsync();
-
-            return Json(new ItemGetProtocol.Response
-            {
-                ItemDataList = itemStructureList
-            });
+            };
         }
     }
 }

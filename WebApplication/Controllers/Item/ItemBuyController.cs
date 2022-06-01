@@ -1,22 +1,22 @@
-﻿using System;
+﻿using API.Di;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using ServerLib.Database.Mysql.Dto.Master.Item;
+using ServerLib.Database.Mysql.Dto.User;
 using Share.Protocol.API.Item.Buy;
 using Share.Structure;
+using System;
 using System.Collections.Generic;
-using Share.Type.Item;
-using Microsoft.EntityFrameworkCore;
 using System.Linq;
 using System.Threading.Tasks;
-using API.Di;
-using ServerLib.Database.Mysql.Dto.User;
 
 namespace API.Controllers.Item
 {
     /// <summary>
-    /// 아이템 획득(구매)
+    /// 아이템 생성 관련
     /// </summary>
     [ApiController]
-    [Route("[controller]")]
+    [Route("Item")]
     public class ItemBuyController : BaseController
     {
         public ItemBuyController(
@@ -25,56 +25,54 @@ namespace API.Controllers.Item
         {
         }
 
+        /// <summary>
+        /// 아이템 구매
+        /// </summary>
+        /// <param name="request"></param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="Exception"></exception>
         [HttpPost]
-        [Route("Item")]
         public async Task<JsonResult> ItemAsync(ItemBuyProtocol.Request request)
         {
             var dbContext = _totalDi._mysqlDbContext;
             var itemIds = request.ItemStructureList.Select(x => x.Id).ToList();
 
-            var masterItemDto = await dbContext.MasterItemDtos
-                .Where(x => itemIds.Contains(x.Id))
-                .ToListAsync();
+            var masterItemDtoList = _totalDi._masterCache.Get<MasterItemDto>(itemIds);
 
-            //요청 확인 및 마스터 데이터 확인
-            if(request.ItemStructureList.Count != masterItemDto.Count())
-            {
-                throw new NotSupportedException("잘못된 요청입니다.");
-            }
+            var useItemCashTypeList = masterItemDtoList.Select(x => x.CashType).ToList();
 
-            var buyItemCashTypeList = masterItemDto.Select(x => x.CashType).ToList();
-
-            var userCashDtoList =  await dbContext.UserCashDtos
+            var userCashDtoList = await dbContext.UserCashDtos
                 .Where(x => x.PlayerId == _playerId)
-                .Where(x => buyItemCashTypeList.Contains(x.CashType))
+                .Where(x => useItemCashTypeList.Contains(x.CashType))
                 .ToListAsync();
 
-            var totalConsumeCashDict = new Dictionary<CashType, uint>();
-            var useCashTypeList = masterItemDto.Select(x => x.CashType).ToList();
-            foreach(var cashType in useCashTypeList)
-            {
-                totalConsumeCashDict.Add(cashType, 0);
-            }
-
-            foreach (var itemStructure in request.ItemStructureList)
-            {
-                var itemMasterDto = masterItemDto.Where(x => x.Id == itemStructure.Id).SingleOrDefault();
-
-                totalConsumeCashDict[itemMasterDto.CashType] += (itemMasterDto.Price * itemStructure.Count);
-            }
-
+            dbContext.AttachRange(userCashDtoList);
 
             var cashStructureList = new List<CashStructure>();
+
+            //사용되는 캐쉬의 총합
+            var totalCashSums =
+                from buyList in request.ItemStructureList
+                join masterItemDto in masterItemDtoList on buyList.Id equals masterItemDto.Id
+                group masterItemDto by masterItemDto.CashType into g
+                select new
+                {
+                    CashType = g.Key,
+                    Price = (uint)g.Sum(x => x.Price)
+                };
+
             foreach (var userCashDto in userCashDtoList)
             {
-                var cashType = userCashDto.CashType;
-                if (userCashDto.Count < totalConsumeCashDict[cashType])
+                var totalCashSum = totalCashSums.SingleOrDefault(x => x.CashType == userCashDto.CashType);
+
+                if (userCashDto.Count < totalCashSum.Price)
                 {
                     throw new ArgumentException("소지금 부족");
                 }
 
-                userCashDto.Count -= totalConsumeCashDict[cashType];
-                _totalDi._daoContext._userCashDao.Update(userCashDto);
+                userCashDto.Count -= totalCashSum.Price;
+
                 cashStructureList.Add(userCashDto.ToCashStructure());
             }
 
@@ -88,7 +86,7 @@ namespace API.Controllers.Item
                     Count = itemStructure.Count,
                 };
 
-                userItemDto = await _totalDi._daoContext._userItemDao.InsertOrUpdateAsync(userItemDto);
+                userItemDto = await _totalDi._daoContext._userItemDao.InsertOrUpdateAsync(userItemDto, await _totalDi._playerDi.GetLastSlotAsync(true));
                 itemStructureList.Add(userItemDto.ToItemStructure(itemStructure.Type));
             }
 

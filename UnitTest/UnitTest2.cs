@@ -3,15 +3,22 @@ using NUnit.Framework;
 using ServerLib.Database.Mysql.Context;
 using ServerLib.Database.Mysql.Dto.User;
 using System;
-using System.Threading.Tasks;
-using System.Text.Json;
-using System.Linq;
 using System.Collections.Generic;
-using System.Reflection;
-using System.ComponentModel.DataAnnotations;
+using System.Linq;
+using System.Text.Json;
+using System.Threading.Tasks;
 
 namespace UnitTest
 {
+    public class AbstractDataExport
+    {
+        public long testId { get; set; }
+    }
+
+    public class TestClass : AbstractDataExport
+    {
+        public long testId { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+    }
     public class Tests2
     {
         [SetUp]
@@ -38,19 +45,39 @@ namespace UnitTest
             }
         }
 
+
         [Test]
         public async Task test2()
         {
+
             using (var context = new MysqlDbContext())
             {
-                var result = await context.UserItemDtos
-                   .Where(x => x.PlayerId == 2)
-                   .OrderByDescending(x => x.Slot)
-                   .Select(x => (uint)(x.Slot + 1))
-                   .SingleOrDefaultAsync();
+                var userItemDtoList = new List<UserItemDto>();
 
-                Console.WriteLine(JsonSerializer.Serialize(result));
+                var testNum = 6;
+                var newData = new UserItemDto
+                {
+                    PlayerId = 1,
+                    Slot = (ushort)testNum,
+                    ItemId = (uint)testNum,
+                    Count = 3,
+                };
+                var result = context.Add(newData);
+
+                userItemDtoList.Add(result.Entity);
+                Console.WriteLine(JsonSerializer.Serialize(userItemDtoList));
+
+                context.SaveChanges();
+
+                Console.WriteLine(userItemDtoList.Count());
+                Console.WriteLine(JsonSerializer.Serialize(userItemDtoList));
             }
+        }
+
+        [Test]
+        public async Task test3()
+        {
+
         }
     }
 }

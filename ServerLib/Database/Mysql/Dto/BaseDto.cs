@@ -2,6 +2,9 @@
 
 namespace ServerLib.Database.Mysql.Dto
 {
+    /// <summary>
+    /// Dto에 들어가는 기본 정보
+    /// </summary>
     public record BaseDto
     {
         [Required]
@@ -12,6 +15,6 @@ namespace ServerLib.Database.Mysql.Dto
         [Required]
         [DataType(DataType.DateTime)]
         [DisplayFormat(DataFormatString = "{0:yyyy-MM-dd H:i:s}", ApplyFormatInEditMode = true)]
-        public DateTime UpdateTime { get; set; } = DateTime.Now; 
+        public DateTime UpdateTime { get; set; } = DateTime.Now;
     }
 }

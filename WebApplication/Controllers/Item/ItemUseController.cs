@@ -1,13 +1,12 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using System.Threading.Tasks;
-using Share.Protocol.API.Item.Use;
-using API.Di;
+﻿using API.Di;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Linq;
-using System;
-using Share.Structure;
-using System.Collections.Generic;
+using ServerLib.Database.Mysql.Dto.Master.Item;
 using ServerLib.Database.Mysql.Dto.User;
+using Share.Protocol.API.Item.Use;
+using System;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace API.Controllers.Item
 {
@@ -15,7 +14,7 @@ namespace API.Controllers.Item
     /// 아이템 사용(수정) 
     /// </summary>
     [ApiController]
-    [Route("[controller]")]
+    [Route("Item")]
     public class ItemUseController : BaseController
     {
         public ItemUseController(
@@ -23,7 +22,7 @@ namespace API.Controllers.Item
         ) : base(totalDi)
         {
         }
-        
+
         /// <summary>
         /// 아이템 판매 
         /// </summary>
@@ -35,69 +34,77 @@ namespace API.Controllers.Item
         public async Task<JsonResult> ItemSellAsync(ItemSellProtocol.Request request)
         {
             var dbContext = _totalDi._mysqlDbContext;
-            var itemIds = request.ItemStructureList.Select(x => x.Id).ToList();
+            var itemIds = request.ItemStructureList.GroupBy(x => x.Id).Select(x => x.Key).ToList();
 
-            var userItemAndMasterDtoList = await (
-                from UserItem in dbContext.UserItemDtos
-                join MasterItem in dbContext.MasterItemDtos
-                    on UserItem.ItemId equals MasterItem.Id
-                where itemIds.Contains(MasterItem.Id) && UserItem.PlayerId == _playerId
-                select new
+            var masterItemDtoList = _totalDi._masterCache.Get<MasterItemDto>(itemIds);
+
+            var userItemDtoDict = await dbContext.UserItemDtos
+                .Where(x => x.PlayerId == _playerId)
+                .Where(x => itemIds.Contains(x.ItemId))
+                .Select(x => new UserItemDto
                 {
-                    UserItem = new UserItemDto
-                    {
-                        Id = UserItem.Id,
-                        ItemId = UserItem.ItemId,
-                        Count = UserItem.Count,
-                    },
-                    MasterItem
-                }
-            ).ToListAsync();
+                    Id = x.ItemId,
+                    ItemId = x.ItemId,
+                    Count = x.Count
+                })
+                .ToDictionaryAsync(x => x.ItemId);
 
-            var cashStructureList = new List<CashStructure>();
+            if (itemIds.Count != userItemDtoDict.Count)
+            {
+                throw new ArgumentException("소지하고 있지 않은 아이템 입니다.");
+            }
+
+            dbContext.AttachRange(userItemDtoDict.Select(x => x.Value));
+
+            var useCashTypes = masterItemDtoList.GroupBy(x => x.CashType).Select(x => x.Key).ToList();
+
+            var userCashDtoDict = await dbContext.UserCashDtos
+                .Where(x => x.PlayerId == _playerId)
+                .Where(x => useCashTypes.Contains(x.CashType))
+                .Select(x => new UserCashDto
+                {
+                    Id = x.Id,
+                    CashType = x.CashType,
+                    Count = x.Count,
+                })
+                .ToDictionaryAsync(x => x.CashType);
+
+            dbContext.AttachRange(userCashDtoDict.Select(x => x.Value));
+
             foreach (var itemStructure in request.ItemStructureList)
             {
-                var userItemAndMasterDto = userItemAndMasterDtoList.SingleOrDefault(x => x.UserItem.ItemId == itemStructure.Id);
-                if (userItemAndMasterDto == null)
+                var masterItemDto = masterItemDtoList.SingleOrDefault(x => x.Id == itemStructure.Id);
+                userItemDtoDict.TryGetValue(itemStructure.Id, out var userItemDto);
+
+                if (userItemDto.Count < itemStructure.Count)
                 {
-                    throw new ArgumentException("존재 하지 않는 아이템");
+                    throw new ArgumentException("소지수량 부족");
                 }
 
-                if (userItemAndMasterDto.UserItem.Count < itemStructure.Count)
-                {
-                    throw new ArgumentException("소지 수량 부족");
-                }
+                var giveCashCount = (masterItemDto.Price * itemStructure.Count) / 2;
 
-                var cashStructure = cashStructureList.SingleOrDefault(x => x.CashType == userItemAndMasterDto.MasterItem.CashType);
-                if (cashStructure == null)
+                userCashDtoDict.TryGetValue(masterItemDto.CashType, out var userCashDto);
+                if (userCashDto == null)
                 {
-                    cashStructure = new CashStructure
+                    var result = await dbContext.UserCashDtos.AddAsync(new UserCashDto
                     {
-                        CashType = userItemAndMasterDto.MasterItem.CashType
-                    };
-                    cashStructureList.Add(cashStructure);
+                        PlayerId = _playerId,
+                        CashType = masterItemDto.CashType,
+                        Count = 0,
+                    });
+
+                    userCashDto = result.Entity;
+
+                    dbContext.Attach(userCashDto);
+                    userCashDtoDict.Add(userCashDto.CashType, userCashDto);
                 }
 
-                cashStructure.Count += (userItemAndMasterDto.MasterItem.Price * itemStructure.Count) / 2;
+                userCashDto.Count += giveCashCount;
 
-                userItemAndMasterDto.UserItem.Count -= itemStructure.Count;
-
-                _totalDi._daoContext._userItemDao.Update(userItemAndMasterDto.UserItem);
+                userItemDto.Count -= itemStructure.Count;
             }
 
-            var userCashDtoList = new List<UserCashDto>();
-
-            foreach (var cashStructure in cashStructureList)
-            {
-                await _totalDi._daoContext._userCashDao.InsertOrUpdateAsync(new UserCashDto
-                {
-                    PlayerId = _playerId,
-                    CashType = cashStructure.CashType,
-                    Count = cashStructure.Count,
-                });
-            }
-
-            await using(var transaction = await dbContext.Database.BeginTransactionAsync())
+            await using (var transaction = await dbContext.Database.BeginTransactionAsync())
             {
                 try
                 {
@@ -112,7 +119,7 @@ namespace API.Controllers.Item
 
             return Json(new ItemSellProtocol.Response
             {
-                CashStructuresList = cashStructureList
+                CashStructuresList = userCashDtoDict.Select(x => x.Value.ToCashStructure()).ToList()
             });
         }
     }

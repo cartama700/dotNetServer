@@ -12,6 +12,9 @@ namespace Share.Structure
         /// </summary>
         public ItemType Type { get; set; }
 
+        /// <summary>
+        /// 아이템 아이디
+        /// </summary>
         public uint Id { get; set; }
 
         public uint Count { get; set; }

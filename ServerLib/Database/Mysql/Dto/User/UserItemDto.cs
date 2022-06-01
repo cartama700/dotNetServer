@@ -15,7 +15,7 @@ namespace ServerLib.Database.Mysql.Dto.User
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         [Key, Column(Order = 0)]
         public long Id { get; set; }
-                
+
         [Column(Order = 1)]
         [Comment("플레이어 아이디")]
         public long PlayerId { get; set; }

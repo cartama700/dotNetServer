@@ -1,13 +1,17 @@
-﻿using Share.Type.Item;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
+using Share.Master.Item;
+using Share.Type.Item;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using Share.Master.Item;
 
 namespace ServerLib.Database.Mysql.Dto.Master.Item
 {
+    /// <summary>
+    /// 마스터 - 아이템
+    /// </summary>
     [Table("master_item")]
-    public class MasterItemDto : IItemDataMaster
+    [Comment("마스터 아이템 정보")]
+    public record MasterItemDto : IItemDataMaster
     {
         [Key, Column(Order = 0)]
         [Comment("아이디")]

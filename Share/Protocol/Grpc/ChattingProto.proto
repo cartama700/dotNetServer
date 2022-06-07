@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+package ChattingGrpc;
+
+service ChattingProto
+{
+	rpc JoinChat (JoinChatReq) returns (JoinChatRes);
+	rpc SendMessageToChatRoom (stream ChatReq) returns (stream ChatRes);
+}
+
+message JoinChatReq
+{
+	int64 PlayerId = 1;
+}
+
+message JoinChatRes
+{
+	int32 RoomId = 1;
+}
+
+message ChatReq
+{
+	int64 PlayerId = 1;
+	string Message = 2;
+	MessageType Type = 3;
+}
+
+message ChatRes
+{
+	int64 PlayerId = 1;
+	string PlayerName = 2;
+	string Message = 3;
+	MessageType Type = 4;
+}
+
+enum MessageType
+{
+	None = 0;
+	Nomal = 1;
+}

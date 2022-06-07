@@ -1,17 +1,13 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net5.0</TargetFramework>
+    <TargetFramework>net6.0</TargetFramework>
+    <OutputType>Library</OutputType>
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Grpc.AspNetCore" Version="2.45.0" />
     <PackageReference Include="Microsoft.AspNetCore.Http.Features" Version="5.0.16" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Update="Protocol\gRPC\greet.proto">
-      <GrpcServices>Server</GrpcServices>
-    </None>
   </ItemGroup>
 
 </Project>

@@ -77,7 +77,10 @@ namespace UnitTest
         [Test]
         public async Task test3()
         {
+            SortedDictionary<long, SortedSet<long>> chattingRoomList =  new SortedDictionary<long, SortedSet<long>>();
 
+            var rooms = chattingRoomList.FirstOrDefault(x => x.Value.Count > 10);
+            Console.WriteLine(JsonSerializer.Serialize(rooms));
         }
     }
 }

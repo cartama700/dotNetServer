@@ -3,12 +3,15 @@ using API.Middleware;
 using API.Swagger;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Server;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.OpenApi.Models;
 using ServerLib.Database.Mysql.Context;
 using ServerLib.Database.Mysql.Dao;
+using Grpc.Core;
+using API.Grpc;
 
 namespace API
 {
@@ -33,6 +36,11 @@ namespace API
 
             services.AddHttpContextAccessor();
 
+            services.AddGrpc(options =>
+            {
+                options.EnableDetailedErrors = true;
+            });
+
             services.AddDbContext<MysqlDbContext>();
 
             services.AddTransient<PlayerDi>();
@@ -41,6 +49,7 @@ namespace API
 
             services.AddTransient<TotalDi>();
 
+            services.AddTransient<ChatRoomService>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -63,6 +72,7 @@ namespace API
 
             app.UseEndpoints(endpoints =>
             {
+                endpoints.MapGrpcService<ChatService>();
                 endpoints.MapControllers();
             });
 
